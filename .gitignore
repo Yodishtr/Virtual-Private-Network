@@ -36,3 +36,13 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+
+.idea/
+*.iml
+target/
+
+dependency-reduced-pom.xml
+
+vpn-server/src/main/resources/server-keystore.p12
+vpn-server/src/main/resources/server.properties
