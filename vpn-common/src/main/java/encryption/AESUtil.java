@@ -1,4 +1,4 @@
-package utilities;
+package encryption;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
@@ -7,9 +7,10 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
-public class EncryptConstants {
 
-    // AES methods
+public class AESUtil {
+
+    // AES static methods
     public static SecretKey generateAesKey() throws NoSuchAlgorithmException {
         KeyGenerator aesKeyGen = KeyGenerator.getInstance("AES");
         aesKeyGen.init(256);
