@@ -9,14 +9,13 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.io.*;
 import java.security.*;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 public class RSAUtil {
-
-    private static final Logger logger = LoggerFactory.getLogger(RSAUtil.class);
 
     public static Map<String, Key> generateRSAKeys(int keySize) throws NoSuchAlgorithmException {
         Map<String, Key> keysMap = new HashMap<>();
@@ -27,18 +26,12 @@ public class RSAUtil {
         PrivateKey privateKey = keyPair.getPrivate();
         keysMap.put("PublicKey", publicKey);
         keysMap.put("PrivateKey", privateKey);
-
-        String publicBase64 = Base64.getEncoder().encodeToString(publicKey.getEncoded());
-        String privateBase64 = Base64.getEncoder().encodeToString(privateKey.getEncoded());
-        logger.info("Public key: {}", publicBase64);
-        logger.info("Private key: {}", privateBase64);
         return keysMap;
     }
 
-    public static byte[] encryptWithPublicKey(String message, PublicKey publicKey) throws
+    public static byte[] encryptWithPublicKey(byte[] inputBytes, PublicKey publicKey) throws
             NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         String cipherTransformation = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
-        byte[] inputBytes = message.getBytes();
         Cipher encryptCipher = Cipher.getInstance(cipherTransformation);
         encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
         byte[] encryptedData = encryptCipher.doFinal(inputBytes);
@@ -53,17 +46,37 @@ public class RSAUtil {
         return decryptCipher.doFinal(encryptedData);
     }
 
-    public static void saveKey(Key key, String keyAlias, String keyPassword) throws KeyStoreException,
-            IOException, CertificateException, NoSuchAlgorithmException {
-        KeyStore ks = KeyStore.getInstance("PKCS12");
-        InputStream inputStream = new FileInputStream("vpn-server/src/main/resources/server-keystore");
-        // need to create a class to load server.properties
-        ks.load(inputStream, "changeit".toCharArray());
-        ks.setKeyEntry(keyAlias, key.getEncoded(), null);
-        try (FileOutputStream outputStream = new FileOutputStream("vpn-server/src/main/resources/server-keystore")) {
-            ks.store(outputStream, "changeit".toCharArray());
+    public static PrivateKey loadPrivateKey(String keyAlias, char[] keyPassword) throws KeyStoreException, IOException,
+            NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (InputStream inputStream = RSAUtil.class.getClassLoader().
+                getResourceAsStream("server-keystore.p12")) {
+            if (inputStream == null) {
+                throw new RuntimeException("server-keystore.p12 not found");
+            }
+            char[] keystorePassword = "changeit".toCharArray();
+            keyStore.load(inputStream, keystorePassword);
+            PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyAlias, keyPassword);
+            return privateKey;
         }
     }
 
+    public static PublicKey loadPublicKey(String keyAlias) throws KeyStoreException, IOException,
+            NoSuchAlgorithmException, CertificateException {
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (InputStream inputStream = RSAUtil.class.getClassLoader().getResourceAsStream("server-keystore.p12")) {
+            if (inputStream == null) {
+                throw new RuntimeException("server-keystore.p12 not found");
+            }
+            char[] keystorePassword = "changeit".toCharArray();
+            keyStore.load(inputStream, keystorePassword);
+            Certificate certificate = keyStore.getCertificate(keyAlias);
+            if (certificate == null) {
+                throw new RuntimeException("certificate not found");
+            }
+            PublicKey publicKey = certificate.getPublicKey();
+            return publicKey;
 
+        }
+    }
 }
