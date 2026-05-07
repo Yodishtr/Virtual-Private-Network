@@ -1,37 +1,48 @@
 package protocol;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 
 public class MessageProtocol {
 
-    record InBoundMessage(byte messageType, byte[] payload) {}
+    public enum MessageType {
+        SERVER_HELLO(1),
+        KEY_EXCHANGE(2),
+        HANDSHAKE_OK(3),
+        HANDSHAKE_ERROR(4),
+        DATA(5),
+        DISCONNECT(6);
 
-    public static void writeMessage(OutputStream out, byte messageType, byte[] payload) throws IOException {
-        int payloadLength = payload.length;
-        byte[] messagePayloadLength = ByteBuffer.allocate(4).putInt(payloadLength).array();
-        ByteArrayOutputStream byteArrayConcatenator = new ByteArrayOutputStream();
-        byteArrayConcatenator.write(messageType);
-        byteArrayConcatenator.write(messagePayloadLength);
-        byteArrayConcatenator.write(payload);
-        byte[] outboundMessage = byteArrayConcatenator.toByteArray();
-        out.write(outboundMessage);
+        private final int code;
+
+        private MessageType(int code) {
+            this.code = code;
+        }
     }
 
-    public static InBoundMessage readMessage(InputStream input) throws IOException {
-        int messageType = input.read();
-        if (messageType == -1){
-            throw new ClosedChannelException();
-        }
-        byte[] lengthBytes = new byte[4];
-        int i = 0;
-        while (i < 4) {
+    public record InboundMessage(byte messageType, byte[] payload) {}
 
-            i++;
+    public static void writeMessage(OutputStream out, byte messageType, byte[] payload) throws IOException {
+        if (payload == null) {
+            payload = new byte[0];
         }
+        int payloadLength = payload.length;
+        DataOutputStream byteArrayConcatenator = new DataOutputStream(out);
+        byteArrayConcatenator.writeByte(messageType);
+        byteArrayConcatenator.writeInt(payloadLength);
+        byteArrayConcatenator.write(payload);
+        byteArrayConcatenator.flush();
+    }
+
+    public static InboundMessage readMessage(InputStream input) throws IOException {
+        DataInputStream dataInputStream = new DataInputStream(input);
+        byte messageTypeByte = dataInputStream.readByte();
+        int payloadLength = dataInputStream.readInt();
+        if (payloadLength < 0 || payloadLength > 1024L * 1024L) {
+            throw new IOException("Invalid message length");
+        }
+        byte[] payload = new byte[payloadLength];
+        dataInputStream.readFully(payload);
+        return new InboundMessage(messageTypeByte, payload);
     }
 }
