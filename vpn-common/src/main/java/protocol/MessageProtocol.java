@@ -18,6 +18,10 @@ public class MessageProtocol {
         private MessageType(int code) {
             this.code = code;
         }
+
+        public int getCode() {
+            return code;
+        }
     }
 
     public record InboundMessage(int messageType, byte[] payload) {}
