@@ -20,7 +20,7 @@ public class MessageProtocol {
         }
     }
 
-    public record InboundMessage(byte messageType, byte[] payload) {}
+    public record InboundMessage(int messageType, byte[] payload) {}
 
     public static void writeMessage(OutputStream out, byte messageType, byte[] payload) throws IOException {
         if (payload == null) {
@@ -37,12 +37,13 @@ public class MessageProtocol {
     public static InboundMessage readMessage(InputStream input) throws IOException {
         DataInputStream dataInputStream = new DataInputStream(input);
         byte messageTypeByte = dataInputStream.readByte();
+        int messageTypeCode = messageTypeByte;
         int payloadLength = dataInputStream.readInt();
         if (payloadLength < 0 || payloadLength > 1024L * 1024L) {
             throw new IOException("Invalid message length");
         }
         byte[] payload = new byte[payloadLength];
         dataInputStream.readFully(payload);
-        return new InboundMessage(messageTypeByte, payload);
+        return new InboundMessage(messageTypeCode, payload);
     }
 }
