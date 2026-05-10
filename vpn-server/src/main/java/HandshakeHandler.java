@@ -25,10 +25,10 @@ public class HandshakeHandler {
         this.socket = socket;
     }
 
-    public SessionCrypto performHandshake() {
+    public SessionCrypto performHandshake() throws IOException {
+        InputStream inputStream = socket.getInputStream();
+        OutputStream outputStream = socket.getOutputStream();
         try {
-            InputStream inputStream = socket.getInputStream();
-            OutputStream outputStream = socket.getOutputStream();
             PrivateKey privateKey = RSAUtil.loadPrivateKey("vpn-server", "changeit".toCharArray());
             PublicKey publicKey = RSAUtil.loadPublicKey("vpn-server");
             byte[] encodedPublicKey = publicKey.getEncoded();
@@ -36,11 +36,14 @@ public class HandshakeHandler {
             MessageProtocol.writeMessage(outputStream, messageType.byteValue(), encodedPublicKey);
             MessageProtocol.InboundMessage inboundMessage = MessageProtocol.readMessage(inputStream);
             // will only have the aesKey in the inboundMessage then use the hmacUtil to derive the hmac key
-            if (inboundMessage.messageType() != MessageProtocol.MessageType.KEY_EXCHANGE.ordinal()) {
+            if (inboundMessage.messageType() != MessageProtocol.MessageType.KEY_EXCHANGE.getCode()) {
                 throw new IOException("Invalid message type: " + inboundMessage.messageType());
             }
             byte[] inboundMessagePayload = inboundMessage.payload();
             byte[] decryptedInboundPayload = RSAUtil.decryptWithPrivateKey(inboundMessagePayload, privateKey);
+            if (decryptedInboundPayload.length != 32 ) {
+                throw new IOException("Invalid message payload");
+            }
             SecretKey aesKey = new SecretKeySpec(decryptedInboundPayload, "AES");
             byte[] derivedHmacKey = HMACUtil.deriveHMACKey(aesKey.getEncoded());
             SessionCrypto sessionCrypto = new SessionCrypto(aesKey, derivedHmacKey);
@@ -53,7 +56,15 @@ public class HandshakeHandler {
         } catch (IOException | UnrecoverableKeyException | CertificateException | KeyStoreException |
                 NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
         InvalidKeyException | InvalidAlgorithmParameterException e) {
+            try {
+                Integer handshakeErrorType = MessageProtocol.MessageType.HANDSHAKE_ERROR.getCode();
+                MessageProtocol.writeMessage(outputStream, handshakeErrorType.byteValue(),
+                        "Encrypted session unable to be established".getBytes(StandardCharsets.UTF_8));
+            } catch (IOException ioException) {
+                throw new IOException(ioException);
+            }
             // should throw an exception since catch clause wont return anything.
+            throw new IOException("encrypted session could not be established.", e);
         }
     }
 }

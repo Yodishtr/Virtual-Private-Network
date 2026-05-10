@@ -47,29 +47,39 @@ public class EncryptedMessage {
         Integer IntegerCiphertextLength = this.cipherText.length;
         Integer IntegerHmacLength = this.hmac.length;
 
-        byte IVlength = IntegerIVlength.byteValue();
-        byte cipherTextLength = IntegerCiphertextLength.byteValue();
-        byte hmacLength = IntegerHmacLength.byteValue();
-
-        byte[] IVlengthArray = new byte[1];
-        IVlengthArray[0] = IVlength;
-        byte[] cipherTextLengthArray = new byte[1];
-        cipherTextLengthArray[0] = cipherTextLength;
-        byte[] hmacLengthArray = new byte[1];
-        hmacLengthArray[0] = hmacLength;
-
-        byte[] serializedEncryptedMessage = ByteBuffer.allocate(IVlengthArray.length +
-                cipherTextLengthArray.length + hmacLengthArray.length + this.IV.length + this.cipherText.length +
+        byte[] serializedEncryptedMessage = ByteBuffer.allocate(12 + this.IV.length + this.cipherText.length +
                 this.hmac.length)
-                .put(IVlengthArray)
+                .putInt(IntegerIVlength)
                 .put(this.IV)
-                .put(cipherTextLengthArray)
+                .putInt(IntegerCiphertextLength)
                 .put(this.cipherText)
-                .put(hmacLengthArray)
+                .putInt(IntegerHmacLength)
                 .put(this.hmac)
                 .array();
         return serializedEncryptedMessage;
     }
 
-
+    // deserializer
+    public static EncryptedMessage deserializeEncryptedMessage(byte[] serializedEncryptedMessage) {
+        ByteBuffer byteBuffer = ByteBuffer.wrap(serializedEncryptedMessage);
+        int ivLength = byteBuffer.getInt();
+        if (ivLength == 0){
+            throw new IllegalArgumentException("IV length must be greater than zero");
+        }
+        byte[] iv = new byte[ivLength];
+        byteBuffer.get(iv, 0, iv.length);
+        int cipherTextLength = byteBuffer.getInt();
+        if (cipherTextLength == 0 || cipherTextLength >= serializedEncryptedMessage.length - (iv.length + 4)) {
+            throw new IllegalArgumentException("cipherText length must be greater than zero");
+        }
+        byte[] cipherText = new byte[cipherTextLength];
+        byteBuffer.get(cipherText, 0, cipherText.length);
+        int hmacLength = byteBuffer.getInt();
+        if (hmacLength == 0) {
+            throw new IllegalArgumentException("hmac length must be greater than zero");
+        }
+        byte[] hmac = new byte[hmacLength];
+        byteBuffer.get(hmac, 0, hmacLength);
+        return new EncryptedMessage(iv, cipherText, hmac);
+    }
 }
