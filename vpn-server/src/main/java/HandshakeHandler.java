@@ -20,17 +20,27 @@ import java.security.cert.CertificateException;
 public class HandshakeHandler {
 
     private final Socket socket;
+    private final String keyAlias;
+    private final char[] privateKeyPassword;
+    private final InputStream keyStoreStream;
+    private final byte[] keyStorePassword;
 
-    public HandshakeHandler(Socket socket) {
+    public HandshakeHandler(Socket socket, String keyAlias, char[] privateKeyPassword, InputStream keyStoreStream,
+                            byte[] keyStorePassword) {
         this.socket = socket;
+        this.keyAlias = keyAlias;
+        this.privateKeyPassword = privateKeyPassword;
+        this.keyStoreStream = keyStoreStream;
+        this.keyStorePassword = keyStorePassword;
     }
 
     public SessionCrypto performHandshake() throws IOException {
         InputStream inputStream = socket.getInputStream();
         OutputStream outputStream = socket.getOutputStream();
         try {
-            PrivateKey privateKey = RSAUtil.loadPrivateKey("vpn-server", "changeit".toCharArray());
-            PublicKey publicKey = RSAUtil.loadPublicKey("vpn-server");
+            PrivateKey privateKey = RSAUtil.loadPrivateKey(this.keyAlias, this.privateKeyPassword,
+                    this.keyStoreStream, this.keyStorePassword);
+            PublicKey publicKey = RSAUtil.loadPublicKey(this.keyAlias, this.keyStoreStream, this.keyStorePassword);
             byte[] encodedPublicKey = publicKey.getEncoded();
             Integer messageType = MessageProtocol.MessageType.SERVER_HELLO.getCode();
             MessageProtocol.writeMessage(outputStream, messageType.byteValue(), encodedPublicKey);

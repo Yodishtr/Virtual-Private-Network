@@ -8,6 +8,7 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -46,37 +47,33 @@ public class RSAUtil {
         return decryptCipher.doFinal(encryptedData);
     }
 
-    public static PrivateKey loadPrivateKey(String keyAlias, char[] keyPassword) throws KeyStoreException, IOException,
+    public static PrivateKey loadPrivateKey(String keyAlias, char[] keyPassword, InputStream keyStoreStream,
+                                            byte[] keyStorePassword) throws
+            KeyStoreException, IOException,
             NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        try (InputStream inputStream = RSAUtil.class.getClassLoader().
-                getResourceAsStream("server-keystore.p12")) {
-            if (inputStream == null) {
-                throw new RuntimeException("server-keystore.p12 not found");
-            }
-            char[] keystorePassword = "changeit".toCharArray();
-            keyStore.load(inputStream, keystorePassword);
-            PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyAlias, keyPassword);
-            return privateKey;
+        String stringVersionKSPW = new String(keyStorePassword, StandardCharsets.UTF_8);
+        char[] usableKeyStorePassword = stringVersionKSPW.toCharArray();
+        keyStore.load(keyStoreStream, usableKeyStorePassword);
+        PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyAlias, keyPassword);
+        return privateKey;
         }
-    }
 
-    public static PublicKey loadPublicKey(String keyAlias) throws KeyStoreException, IOException,
+
+    public static PublicKey loadPublicKey(String keyAlias, InputStream keyStoreStream, byte[] keyStorePassword) throws
+            KeyStoreException, IOException,
             NoSuchAlgorithmException, CertificateException {
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        try (InputStream inputStream = RSAUtil.class.getClassLoader().getResourceAsStream("server-keystore.p12")) {
-            if (inputStream == null) {
-                throw new RuntimeException("server-keystore.p12 not found");
-            }
-            char[] keystorePassword = "changeit".toCharArray();
-            keyStore.load(inputStream, keystorePassword);
-            Certificate certificate = keyStore.getCertificate(keyAlias);
-            if (certificate == null) {
-                throw new RuntimeException("certificate not found");
-            }
-            PublicKey publicKey = certificate.getPublicKey();
-            return publicKey;
-
+        String stringVersionKSPW = new String(keyStorePassword, StandardCharsets.UTF_8);
+        char[] usableKeyStorePassword = stringVersionKSPW.toCharArray();
+        keyStore.load(keyStoreStream, usableKeyStorePassword);
+        Certificate certificate = keyStore.getCertificate(keyAlias);
+        if (certificate == null) {
+            throw new RuntimeException("certificate not found");
         }
+        PublicKey publicKey = certificate.getPublicKey();
+        return publicKey;
+
     }
+
 }
