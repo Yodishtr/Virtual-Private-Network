@@ -61,22 +61,25 @@ public class EncryptedMessage {
 
     // deserializer
     public static EncryptedMessage deserializeEncryptedMessage(byte[] serializedEncryptedMessage) {
+        if (serializedEncryptedMessage == null || serializedEncryptedMessage.length < 12) {
+            throw new IllegalArgumentException("serializedEncryptedMessage is invalid");
+        }
         ByteBuffer byteBuffer = ByteBuffer.wrap(serializedEncryptedMessage);
         int ivLength = byteBuffer.getInt();
-        if (ivLength == 0){
-            throw new IllegalArgumentException("IV length must be greater than zero");
+        if (ivLength == 0 || ivLength > byteBuffer.remaining()){
+            throw new IllegalArgumentException("IV length is invalid");
         }
         byte[] iv = new byte[ivLength];
         byteBuffer.get(iv, 0, iv.length);
         int cipherTextLength = byteBuffer.getInt();
-        if (cipherTextLength == 0 || cipherTextLength >= serializedEncryptedMessage.length - (iv.length + 4)) {
-            throw new IllegalArgumentException("cipherText length must be greater than zero");
+        if (cipherTextLength == 0 || cipherTextLength > byteBuffer.remaining()) {
+            throw new IllegalArgumentException("cipherText length is invalid");
         }
         byte[] cipherText = new byte[cipherTextLength];
         byteBuffer.get(cipherText, 0, cipherText.length);
         int hmacLength = byteBuffer.getInt();
-        if (hmacLength == 0) {
-            throw new IllegalArgumentException("hmac length must be greater than zero");
+        if (hmacLength == 0 || hmacLength > byteBuffer.remaining()) {
+            throw new IllegalArgumentException("hmac length is invalid");
         }
         byte[] hmac = new byte[hmacLength];
         byteBuffer.get(hmac, 0, hmacLength);
