@@ -76,4 +76,26 @@ public class RSAUtil {
 
     }
 
+    public static Map<String, AsymmetricKey> loadKeys(String keyAlias, InputStream keyStoreStream,
+                                                      byte[] keyStorePassword, char[] privateKeyPassword)
+            throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
+        Map<String, AsymmetricKey> keysMap = new HashMap<>();
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        String stringVersionKSPW = new String(keyStorePassword, StandardCharsets.UTF_8);
+        char[] usableKeyStorePassword = stringVersionKSPW.toCharArray();
+        keyStore.load(keyStoreStream, usableKeyStorePassword);
+        Certificate certificate = keyStore.getCertificate(keyAlias);
+        if (certificate == null) {
+            throw new RuntimeException("certificate not found");
+        }
+        PublicKey publicKey = certificate.getPublicKey();
+        PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyAlias, privateKeyPassword);
+        if (privateKey == null) {
+            throw new RuntimeException("private key not found");
+        }
+        keysMap.put("PrivateKey", privateKey);
+        keysMap.put("PublicKey", publicKey);
+        return keysMap;
+    }
+
 }

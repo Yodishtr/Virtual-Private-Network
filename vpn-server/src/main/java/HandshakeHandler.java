@@ -38,6 +38,9 @@ public class HandshakeHandler {
         InputStream inputStream = socket.getInputStream();
         OutputStream outputStream = socket.getOutputStream();
         try {
+            // use loadKeys method to load both private key and public key at once bc inputstream will be finished
+            // after one use and needs to be "renewed" sort of. kinda like a cassette tape needs to be rewound after
+            // use.
             PrivateKey privateKey = RSAUtil.loadPrivateKey(this.keyAlias, this.privateKeyPassword,
                     this.keyStoreStream, this.keyStorePassword);
             PublicKey publicKey = RSAUtil.loadPublicKey(this.keyAlias, this.keyStoreStream, this.keyStorePassword);

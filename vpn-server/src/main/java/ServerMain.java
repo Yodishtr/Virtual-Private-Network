@@ -18,38 +18,50 @@ public class ServerMain {
     private ServerSocket serverSocket;
     private ExecutorService executor;
 
-    public ServerMain(Properties config) throws IOException {
+    public ServerMain(Properties config) {
         this.config = config;
+        this.port = Integer.parseInt(this.config.getProperty("server.port"));
     }
 
     public ServerMain() {}
 
-    private static Properties loadConfig() {
-        Properties currentProps = new Properties();
-        try (InputStream serverPropsFile = ServerMain.class.getClassLoader().getResourceAsStream("server.properties")) {
-            if (serverPropsFile == null) {
-                throw new IOException("server properties file not found");
-            }
-            currentProps.load(serverPropsFile);
-            return currentProps;
-        } catch (IOException e){
-            e.printStackTrace();
-            return currentProps;
+    public static Properties loadConfig() throws IOException {
+        Properties config = new Properties();
+        InputStream serverPropsFile = ServerMain.class.getClassLoader().getResourceAsStream("server.properties");
+        if (serverPropsFile == null) {
+            throw new IOException("server properties file not found");
         }
+        config.load(serverPropsFile);
+        serverPropsFile.close();
+        return config;
     }
 
-    private void shutdown() {
+    public void shutdown() {
         this.running = false;
-        try {
-            this.serverSocket.close();
+        if (this.serverSocket != null) {
+            try {
+                this.serverSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (this.executor != null) {
             this.executor.shutdown();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
-    private void handleClient(Socket socket) {
+    public void handleClient(Socket socket) {
         InputStream keyStoreStream = getClass().getClassLoader().getResourceAsStream("server-keystore.p12");
+        if (keyStoreStream == null) {
+            System.out.println("server-keystore.p12 not found");
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
         HandshakeHandler currentHandshakeHandler = new HandshakeHandler(socket,
                 this.config.getProperty("server.keystore.alias"), this.config.getProperty("server.keystore.password").toCharArray(),
                 keyStoreStream, this.config.getProperty("server.keystore.password").getBytes(StandardCharsets.UTF_8));
@@ -60,10 +72,15 @@ public class ServerMain {
             clientHandler.run();
         } catch (IOException e) {
             e.printStackTrace();
+            try {
+                socket.close();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
         }
     }
 
-    private void start() {
+    public void start() {
         try {
             this.serverSocket = new ServerSocket(this.port);
             this.running = true;
@@ -75,7 +92,11 @@ public class ServerMain {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            if (this.running) {
+                System.out.println("Accept method failed unexpectedly");
+            } else {
+                System.out.println("Server shutdown...");
+            }
         }
     }
 
@@ -123,12 +144,10 @@ public class ServerMain {
         this.executor = executor;
     }
 
-    public static void main(String[] args) {
-        ServerMain server = new ServerMain();
-        Properties currentConfig = server.loadConfig();
-        server.setConfig(currentConfig);
-        server.setPort(Integer.parseInt(server.getConfig().getProperty("server.port")));
+    public static void main(String[] args) throws IOException {
+        Properties currentConfig = loadConfig();
+        ServerMain server = new ServerMain(currentConfig);
         server.start();
-        System.out.println("Server connection severed ");
+        System.out.println("Server connection severed.");
     }
 }
