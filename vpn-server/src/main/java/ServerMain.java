@@ -1,9 +1,12 @@
+import encryption.SessionCrypto;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -19,9 +22,11 @@ public class ServerMain {
         this.config = config;
     }
 
-    private Properties loadConfig() {
+    public ServerMain() {}
+
+    private static Properties loadConfig() {
         Properties currentProps = new Properties();
-        try (InputStream serverPropsFile = getClass().getClassLoader().getResourceAsStream("server.properties")) {
+        try (InputStream serverPropsFile = ServerMain.class.getClassLoader().getResourceAsStream("server.properties")) {
             if (serverPropsFile == null) {
                 throw new IOException("server properties file not found");
             }
@@ -33,11 +38,29 @@ public class ServerMain {
         }
     }
 
+    private void shutdown() {
+        this.running = false;
+        try {
+            this.serverSocket.close();
+            this.executor.shutdown();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void handleClient(Socket socket) {
-        InputStream keyStoreStream = ServerMain.class.getResourceAsStream("server-keystore.p12");
+        InputStream keyStoreStream = getClass().getClassLoader().getResourceAsStream("server-keystore.p12");
         HandshakeHandler currentHandshakeHandler = new HandshakeHandler(socket,
-                this.config.getProperty("server.keystore.alias"), "changeit".toCharArray(), keyStoreStream,
-                "changeit".getBytes(StandardCharsets.UTF_8));
+                this.config.getProperty("server.keystore.alias"), this.config.getProperty("server.keystore.password").toCharArray(),
+                keyStoreStream, this.config.getProperty("server.keystore.password").getBytes(StandardCharsets.UTF_8));
+        try {
+            SessionCrypto encryptedSession = currentHandshakeHandler.performHandshake();
+            UUID tempSessionId = UUID.randomUUID();
+            ClientHandler clientHandler = new ClientHandler(socket, encryptedSession, tempSessionId);
+            clientHandler.run();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void start() {
@@ -56,7 +79,56 @@ public class ServerMain {
         }
     }
 
-    public static void main(String[] args) {
 
+
+    // Getters
+    public Properties getConfig() {
+        return this.config;
+    }
+
+    public int getPort() {
+        return this.port;
+    }
+
+    public boolean isRunning() {
+        return this.running;
+    }
+
+    public ServerSocket getServerSocket() {
+        return this.serverSocket;
+    }
+
+    public ExecutorService getExecutor() {
+        return this.executor;
+    }
+
+    // Setters
+    public void setConfig(Properties config) {
+        this.config = config;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public void setRunning(boolean running) {
+        this.running = running;
+    }
+
+    public void setServerSocket(ServerSocket serverSocket) {
+        this.serverSocket = serverSocket;
+    }
+
+    public void setExecutor(ExecutorService executor) {
+        this.executor = executor;
+    }
+
+    public static void main(String[] args) {
+        ServerMain server = new ServerMain();
+        Properties currentConfig = server.loadConfig();
+        server.setConfig(currentConfig);
+        server.setPort(Integer.parseInt(server.getConfig().getProperty("server.port")));
+        server.start();
+        System.out.println("Server connection severed ");
     }
 }
