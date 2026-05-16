@@ -76,10 +76,10 @@ public class RSAUtil {
 
     }
 
-    public static Map<String, AsymmetricKey> loadKeys(String keyAlias, InputStream keyStoreStream,
+    public static Map<String, Key> loadKeys(String keyAlias, InputStream keyStoreStream,
                                                       byte[] keyStorePassword, char[] privateKeyPassword)
             throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException {
-        Map<String, AsymmetricKey> keysMap = new HashMap<>();
+        Map<String, Key> keysMap = new HashMap<>();
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         String stringVersionKSPW = new String(keyStorePassword, StandardCharsets.UTF_8);
         char[] usableKeyStorePassword = stringVersionKSPW.toCharArray();

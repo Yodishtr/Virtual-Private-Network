@@ -16,6 +16,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.CertificateException;
+import java.util.Map;
 
 public class HandshakeHandler {
 
@@ -38,12 +39,10 @@ public class HandshakeHandler {
         InputStream inputStream = socket.getInputStream();
         OutputStream outputStream = socket.getOutputStream();
         try {
-            // use loadKeys method to load both private key and public key at once bc inputstream will be finished
-            // after one use and needs to be "renewed" sort of. kinda like a cassette tape needs to be rewound after
-            // use.
-            PrivateKey privateKey = RSAUtil.loadPrivateKey(this.keyAlias, this.privateKeyPassword,
-                    this.keyStoreStream, this.keyStorePassword);
-            PublicKey publicKey = RSAUtil.loadPublicKey(this.keyAlias, this.keyStoreStream, this.keyStorePassword);
+            Map<String, Key> keyStoreMaps = RSAUtil.loadKeys(this.keyAlias, this.keyStoreStream,
+                    this.keyStorePassword, this.privateKeyPassword);
+            PrivateKey privateKey = (PrivateKey) keyStoreMaps.get("PrivateKey");
+            PublicKey publicKey = (PublicKey) keyStoreMaps.get("PublicKey");
             byte[] encodedPublicKey = publicKey.getEncoded();
             Integer messageType = MessageProtocol.MessageType.SERVER_HELLO.getCode();
             MessageProtocol.writeMessage(outputStream, messageType.byteValue(), encodedPublicKey);
