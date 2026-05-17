@@ -11,6 +11,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,5 +103,53 @@ public class HandshakeTest {
         String result = serverTask.get();
         Assertions.assertNotNull(result);
         Assertions.assertEquals("Hello", result);
+    }
+
+
+    @Test
+    public void testClientDisconnectionRequest() throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ServerSocket serverSocket = new ServerSocket(8080);
+        Future<String> serverTask = executor.submit((Callable<String>) () -> {
+            try {
+                Socket clientSocket = serverSocket.accept();
+                InputStream propertiesStream = HandshakeTest.class.getClassLoader().
+                        getResourceAsStream("server.properties");
+                InputStream keystoreStream = HandshakeTest.class.getClassLoader().
+                        getResourceAsStream("server-keystore.p12");
+                Properties keyStoreProperties = new Properties();
+                keyStoreProperties.load(propertiesStream);
+                String keyAlias = keyStoreProperties.getProperty("server.keystore.alias");
+                char[] privateKeyPassword = keyStoreProperties.getProperty("server.keystore.password").toCharArray();
+                byte[] keyStorePassword = keyStoreProperties.getProperty("server.keystore.password").getBytes();
+                HandshakeHandler serverHandshakeHandler = new HandshakeHandler(clientSocket, keyAlias,
+                        privateKeyPassword, keystoreStream, keyStorePassword);
+                SessionCrypto serverSessionCrypto = serverHandshakeHandler.performHandshake();
+                ClientHandler clientHandler = new ClientHandler(clientSocket, serverSessionCrypto, UUID.randomUUID());
+                clientHandler.run();
+                return "Done";
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        });
+
+        // Client
+        Socket clientSocket = new Socket("localhost", 8080);
+        HandShakeManager clientHandshakeManager = new HandShakeManager(clientSocket);
+        SessionCrypto clientSessionCrypto = clientHandshakeManager.handleHandshake();
+        OutputStream clientOutputStream = clientSocket.getOutputStream();
+        InputStream clientInputStream = clientSocket.getInputStream();
+        Integer disconnectionRequest = MessageProtocol.MessageType.DISCONNECT.getCode();
+        MessageProtocol.writeMessage(clientOutputStream, disconnectionRequest.byteValue(), null);
+        MessageProtocol.InboundMessage serverACK = MessageProtocol.readMessage(clientInputStream);
+        byte[] serverAcknowledgement = serverACK.payload();
+        EncryptedMessage receivedEncryptedMessage = EncryptedMessage.deserializeEncryptedMessage(serverAcknowledgement);
+        byte[] decryptedServerACK = clientSessionCrypto.decrypt(receivedEncryptedMessage);
+        String serverACKMessage = new String(decryptedServerACK, StandardCharsets.UTF_8);
+        String result = serverTask.get();
+        Assertions.assertNotNull(result);
+        Assertions.assertEquals("Done", result);
+        Assertions.assertEquals("SERVER_RECEIVED_DISCONNECTION_REQUEST", serverACKMessage);
     }
 }

@@ -71,6 +71,12 @@ public class ClientHandler implements Runnable{
                 MessageProtocol.writeMessage(outputStream, serverDataMessageType.byteValue(),
                         serializedEncryptedServerResponse);
             } else if (inboundMessage.messageType() == MessageProtocol.MessageType.DISCONNECT.getCode()) {
+                byte[] serverResponse = "SERVER_RECEIVED_DISCONNECTION_REQUEST".getBytes();
+                EncryptedMessage encryptedMessage = this.sessionCrypto.encrypt(serverResponse);
+                byte[] serializedEncryptedServerResponse = encryptedMessage.serializeEncryptedMessage();
+                Integer serverDataMessageType = MessageProtocol.MessageType.DATA.getCode();
+                MessageProtocol.writeMessage(outputStream, serverDataMessageType.byteValue(),
+                        serializedEncryptedServerResponse);
                 this.running = false;
             } else {
                 this.running = false;
