@@ -16,10 +16,9 @@
     </modules>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>22.0.2</java.version>
         <javafx.version>21.0.2</javafx.version>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.release>22</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
