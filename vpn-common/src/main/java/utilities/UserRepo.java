@@ -9,15 +9,12 @@ public interface UserRepo {
 
     Optional<User> findByUsername(String username) throws SQLException;
 
-    User createUser(String username, String passwordHash, User.Role role, User.Status status, int maxConnections);
+    User createUser(String username, String passwordHash, String role, String status, int maxConnections) throws SQLException;
 
-    boolean updateLastLogin(String username, Instant timestamp);
+    boolean updateLastLogin(String username) throws SQLException;
 
-    boolean updateUserStatus(String username, User.Status newStatus);
+    boolean updateUserStatus(String username, String newStatus) throws SQLException;
 
-    List<User> findAllUsers();
-
-    int countActiveSessionsForUser(String username);
-
+    List<User> findAllUsers() throws SQLException;
 
 }

@@ -6,8 +6,8 @@ import java.time.LocalDateTime;
 public class User {
 
     public enum Role {
-        USER("User"),
-        ADMIN("Admin");
+        USER("USER"),
+        ADMIN("ADMIN");
 
         private final String currRole;
 
@@ -31,9 +31,9 @@ public class User {
 
 
     public enum Status {
-        ACTIVE("active"),
-        SUSPENDED("suspended"),
-        DELETED("deleted");
+        ACTIVE("ACTIVE"),
+        SUSPENDED("SUSPENDED"),
+        DELETED("DELETED");
 
         private final String currStatus;
 
@@ -58,13 +58,13 @@ public class User {
     private long id;
     private String username;
     private String passwordHash;
-    private String role;
-    private String status;
+    private Role role;
+    private Status status;
     private Instant createdAt;
     private Instant lastLogin;
     private Integer maxConnections;
 
-    public User(String username, String passwordHash, String role, String status, Instant createdAt,
+    public User(String username, String passwordHash, Role role, Status status, Instant createdAt,
                 Instant lastLogin, long id, Integer maxConnections) {
         this.id = id;
         this.username = username;
@@ -73,6 +73,14 @@ public class User {
         this.status = status;
         this.createdAt = createdAt;
         this.lastLogin = lastLogin;
+        this.maxConnections = maxConnections;
+    }
+
+    public User(String username, String passwordHash, Role role, Status status, int maxConnections) {
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.role = role;
+        this.status = status;
         this.maxConnections = maxConnections;
     }
 
@@ -89,11 +97,11 @@ public class User {
         return passwordHash;
     }
 
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
 
-    public String getStatus() {
+    public Status getStatus() {
         return status;
     }
 
@@ -122,11 +130,11 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    public void setRole(String role) {
+    public void setRole(Role role) {
         this.role = role;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
 
