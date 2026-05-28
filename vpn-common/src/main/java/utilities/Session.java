@@ -1,6 +1,7 @@
 package utilities;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public class Session {
@@ -8,19 +9,19 @@ public class Session {
     private long id;
     private long userId;
     private String clientIp;
-    private Instant createdAt;
-    private Instant disconnectedAt;
+    private OffsetDateTime connectedAt;
+    private OffsetDateTime disconnectedAt;
     private long bytesSent;
     private long bytesReceived;
     private String disconnectReason;
     private UUID sessionToken;
 
-    public Session(long id, long userId, String clientIp, Instant createdAt, Instant disconnectedAt, long bytesSent,
-                   long bytesReceived, String disconnectReason, UUID sessionToken) {
+    public Session(long id, long userId, String clientIp, OffsetDateTime connectedAt, OffsetDateTime disconnectedAt,
+                   long bytesSent, long bytesReceived, String disconnectReason, UUID sessionToken) {
         this.id = id;
         this.userId = userId;
         this.clientIp = clientIp;
-        this.createdAt = createdAt;
+        this.connectedAt = connectedAt;
         this.disconnectedAt = disconnectedAt;
         this.bytesSent = bytesSent;
         this.bytesReceived = bytesReceived;
@@ -41,11 +42,11 @@ public class Session {
         return clientIp;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
+    public OffsetDateTime getConnectedAt() {
+        return connectedAt;
     }
 
-    public Instant getDisconnectedAt() {
+    public OffsetDateTime getDisconnectedAt() {
         return disconnectedAt;
     }
 
@@ -78,11 +79,11 @@ public class Session {
         this.clientIp = clientIp;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
+    public void setConnectedAt(OffsetDateTime connectedAt) {
+        this.connectedAt = connectedAt;
     }
 
-    public void setDisconnectedAt(Instant disconnectedAt) {
+    public void setDisconnectedAt(OffsetDateTime disconnectedAt) {
         this.disconnectedAt = disconnectedAt;
     }
 

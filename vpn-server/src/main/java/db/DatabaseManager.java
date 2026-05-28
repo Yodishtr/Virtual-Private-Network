@@ -11,7 +11,7 @@ import java.util.Properties;
 
 public class DatabaseManager {
 
-    private static HikariDataSource hikariDataSource;
+    private static final HikariDataSource hikariDataSource;
 
     static {
         HikariConfig hikariConfig = new HikariConfig();
