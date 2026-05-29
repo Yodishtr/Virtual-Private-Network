@@ -12,9 +12,11 @@ public interface SessionRepo {
 
     Optional<Session> updateDisconnectSessionTimeAndReason(String reason, long sessionId);
 
-    boolean updateBytesTransferred(long bytesTransferred);
+    Optional<Session> updateBytesTransferred(long byteSent, long byteReceived, long sessionId);
 
     List<Session> findActiveSessions();
+
+    int countActiveSessions();
 
     List<Session> findUserSessions(String username);
 }

@@ -3,6 +3,7 @@ package db;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
@@ -36,7 +37,7 @@ public class DatabaseManager {
         hikariDataSource = new HikariDataSource(hikariConfig);
     }
 
-    public static Connection getConnection() throws SQLException {
-        return hikariDataSource.getConnection();
+    public static DataSource getConnection() throws SQLException {
+        return hikariDataSource;
     }
 }
