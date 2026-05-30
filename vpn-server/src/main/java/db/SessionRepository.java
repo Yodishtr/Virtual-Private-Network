@@ -170,13 +170,35 @@ public class SessionRepository implements SessionRepo {
     public List<Session> findUserSessions(String username) {
         List<Session> resultList = new ArrayList<>();
         String findUserIdSqlStatement = "SELECT * FROM users WHERE username = ?";
-        String findSessionSqlStatement = "SELECT * FROM sessions WHERE user_id = ?";
+        String findSessionSqlStatement = "SELECT * FROM sessions WHERE user_id = ? AND disconnected_at IS NULL";
         try (Connection connection  = this.dataSource.getConnection();
         PreparedStatement findSessionPreparedStatement = connection.prepareStatement(findSessionSqlStatement);
         PreparedStatement findUserPreparedStatement = connection.prepareStatement(findUserIdSqlStatement)) {
-
+            findUserPreparedStatement.setString(1, username);
+            ResultSet userResultSet = findUserPreparedStatement.executeQuery();
+            if (userResultSet.next()) {
+                long userId = userResultSet.getLong("id");
+                findSessionPreparedStatement.setLong(1, userId);
+                ResultSet sessionResultSet = findSessionPreparedStatement.executeQuery();
+                if (sessionResultSet.next()) {
+                    long sessionId = sessionResultSet.getLong("id");
+                    long userID = sessionResultSet.getLong("user_id");
+                    String clientIp = sessionResultSet.getObject("client_ip").toString();
+                    OffsetDateTime connectedAt = sessionResultSet.getObject("connected_at", OffsetDateTime.class);
+                    long bytesSent = sessionResultSet.getLong("bytes_sent");
+                    long bytesReceived = sessionResultSet.getLong("bytes_received");
+                    UUID sessionToken = sessionResultSet.getObject("session_token", UUID.class);
+                    Session currentActiveSession = new Session(sessionId, userID, clientIp, connectedAt, null,
+                            bytesSent, bytesReceived, null, sessionToken);
+                    resultList.add(currentActiveSession);
+                }
+                return resultList;
+            } else {
+                return resultList;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
+            return resultList;
         }
     }
 }
