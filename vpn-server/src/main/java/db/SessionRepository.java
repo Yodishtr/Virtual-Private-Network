@@ -22,36 +22,37 @@ public class SessionRepository implements SessionRepo {
     }
 
     @Override
-    public long createNewSession(long userId, String clientIp) {
-        String insertSqlStatement = "INSERT INTO sessions (user_id, client_ip, session_token) VALUES (?, ?, ?)";
+    public Optional<Session> createNewSession(long userId, String clientIp) {
+        String insertSqlStatement = "INSERT INTO sessions (user_id, client_ip, session_token) VALUES (?, ?, ?) " +
+                "RETURNING *";
         try (Connection connection = this.dataSource.getConnection();
         PreparedStatement preparedStatement = connection.prepareStatement(insertSqlStatement)) {
             preparedStatement.setLong(1, userId);
             preparedStatement.setString(2, clientIp);
             UUID sessionToken = UUID.randomUUID();
             preparedStatement.setObject(3, sessionToken);
-            int insertionResult = preparedStatement.executeUpdate();
-            if (insertionResult == 1) {
-                String selectSqlStatement = "SELECT * FROM sessions WHERE session_token = ?";
-                try (PreparedStatement selectStatement = connection.prepareStatement(selectSqlStatement)) {
-                    selectStatement.setObject(1, sessionToken);
-                    ResultSet resultSet = selectStatement.executeQuery();
-                    if (resultSet.next()) {
-                        long sessionId =  resultSet.getLong("id");
-                        return sessionId;
-                    } else {
-                        return -1;
-                    }
-                } catch (SQLException e){
-                    e.printStackTrace();
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    long sessionId = resultSet.getLong("id");
+                    long userID = resultSet.getLong("user_id");
+                    String currentClientIp = resultSet.getObject("client_ip").toString();
+                    OffsetDateTime connectedAt = resultSet.getObject("connected_at", OffsetDateTime.class);
+                    OffsetDateTime disconnectAt = resultSet.getObject("disconnected_at", OffsetDateTime.class);
+                    long bytesSent = resultSet.getLong("bytes_sent");
+                    long bytesReceived = resultSet.getLong("bytes_received");
+                    String reason = resultSet.getString("disconnect_reason");
+                    UUID currentSessionToken = resultSet.getObject("session_token", UUID.class);
+                    Session currentSessionUpdated = new Session(sessionId, userID, currentClientIp, connectedAt, disconnectAt,
+                            bytesSent, bytesReceived, reason, currentSessionToken);
+                    return Optional.of(currentSessionUpdated);
+                } else {
+                    return Optional.empty();
                 }
-            } else {
-                return -1;
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return -1;
+        return Optional.empty();
     }
 
     @Override
@@ -67,7 +68,7 @@ public class SessionRepository implements SessionRepo {
                     long userID = resultSet.getLong("user_id");
                     String clientIp = resultSet.getObject("client_ip").toString();
                     OffsetDateTime connectedAt = resultSet.getObject("connected_at", OffsetDateTime.class);
-                    OffsetDateTime disconnectAt = resultSet.getObject("disconnect_at", OffsetDateTime.class);
+                    OffsetDateTime disconnectAt = resultSet.getObject("disconnected_at", OffsetDateTime.class);
                     long bytesSent = resultSet.getLong("bytes_sent");
                     long bytesReceived = resultSet.getLong("bytes_received");
                     UUID sessionToken = resultSet.getObject("session_token", UUID.class);
@@ -84,41 +85,73 @@ public class SessionRepository implements SessionRepo {
         return Optional.empty();
     }
 
+//    @Override
+//    public Optional<Session> updateBytesTransferred(long byteSent, long byteReceived, long sessionId) {
+//        String retrieveSqlStatement = "SELECT * FROM sessions WHERE id = ?";
+//        String updateSqlStatement = "UPDATE sessions SET bytes_sent = ?, bytes_received = ? WHERE id = ? RETURNING *";
+//        try (Connection connection = this.dataSource.getConnection();
+//        PreparedStatement retrievePreparedStatement = connection.prepareStatement(retrieveSqlStatement);
+//        PreparedStatement updatePreparedStatement = connection.prepareStatement(updateSqlStatement)) {
+//            retrievePreparedStatement.setLong(1, sessionId);
+//            ResultSet retrieveResultSet = retrievePreparedStatement.executeQuery();
+//            if (retrieveResultSet.next()) {
+//                long currentBytesSent = retrieveResultSet.getLong("bytes_sent") + byteSent;
+//                long currentBytesReceived = retrieveResultSet.getLong("bytes_received") + byteReceived;
+//                updatePreparedStatement.setLong(1, currentBytesSent);
+//                updatePreparedStatement.setLong(2, currentBytesReceived);
+//                updatePreparedStatement.setLong(3, sessionId);
+//                ResultSet updateResultSet = updatePreparedStatement.executeQuery();
+//                if (updateResultSet.next()) {
+//                    long userID = updateResultSet.getLong("user_id");
+//                    String clientIp = updateResultSet.getObject("client_ip").toString();
+//                    OffsetDateTime connectedAt = updateResultSet.getObject("connected_at", OffsetDateTime.class);
+//                    OffsetDateTime disconnectAt = updateResultSet.getObject("disconnected_at", OffsetDateTime.class);
+//                    long bytesSent = updateResultSet.getLong("bytes_sent");
+//                    long bytesReceived = updateResultSet.getLong("bytes_received");
+//                    String disconnectReason = updateResultSet.getString("disconnect_reason");
+//                    UUID sessionToken = updateResultSet.getObject("session_token", UUID.class);
+//                    Session currentSessionUpdated = new Session(sessionId, userID, clientIp, connectedAt, disconnectAt,
+//                            bytesSent, bytesReceived, disconnectReason, sessionToken);
+//                    return Optional.of(currentSessionUpdated);
+//                }
+//            } else {
+//                throw new RuntimeException("no session with that id has been found");
+//            }
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        } catch (RuntimeException e) {
+//            e.printStackTrace();
+//        }
+//        return Optional.empty();
+//    }
+
     @Override
     public Optional<Session> updateBytesTransferred(long byteSent, long byteReceived, long sessionId) {
-        String retrieveSqlStatement = "SELECT * FROM sessions WHERE id = ?";
-        String updateSqlStatement = "UPDATE sessions SET bytes_sent = ?, bytes_received = ? WHERE id = ? RETURNING *";
+        String sqlStatement = "UPDATE sessions SET bytes_sent = bytes_sent + ?, bytes_received = bytes_received + ? " +
+                "WHERE id = ? RETURNING *";
         try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement retrievePreparedStatement = connection.prepareStatement(retrieveSqlStatement);
-        PreparedStatement updatePreparedStatement = connection.prepareStatement(updateSqlStatement)) {
-            retrievePreparedStatement.setLong(1, sessionId);
-            ResultSet retrieveResultSet = retrievePreparedStatement.executeQuery();
-            if (retrieveResultSet.next()) {
-                long currentBytesSent = retrieveResultSet.getLong("bytes_sent") + byteSent;
-                long currentBytesReceived = retrieveResultSet.getLong("bytes_received") + byteReceived;
-                updatePreparedStatement.setLong(1, currentBytesSent);
-                updatePreparedStatement.setLong(2, currentBytesReceived);
-                updatePreparedStatement.setLong(3, sessionId);
-                ResultSet updateResultSet = updatePreparedStatement.executeQuery();
-                if (updateResultSet.next()) {
-                    long userID = updateResultSet.getLong("user_id");
-                    String clientIp = updateResultSet.getObject("client_ip").toString();
-                    OffsetDateTime connectedAt = updateResultSet.getObject("connected_at", OffsetDateTime.class);
-                    OffsetDateTime disconnectAt = updateResultSet.getObject("disconnect_at", OffsetDateTime.class);
-                    long bytesSent = updateResultSet.getLong("bytes_sent");
-                    long bytesReceived = updateResultSet.getLong("bytes_received");
-                    String disconnectReason = updateResultSet.getString("disconnect_reason");
-                    UUID sessionToken = updateResultSet.getObject("session_token", UUID.class);
-                    Session currentSessionUpdated = new Session(sessionId, userID, clientIp, connectedAt, disconnectAt,
-                            bytesSent, bytesReceived, disconnectReason, sessionToken);
-                    return Optional.of(currentSessionUpdated);
+        PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
+            preparedStatement.setLong(1, byteSent);
+            preparedStatement.setLong(2, byteReceived);
+            preparedStatement.setLong(3, sessionId);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    long userId = resultSet.getLong("user_id");
+                    String clientIp = resultSet.getObject("client_ip").toString();
+                    OffsetDateTime connectedAt = resultSet.getObject("connected_at", OffsetDateTime.class);
+                    OffsetDateTime disconnectAt = resultSet.getObject("disconnected_at", OffsetDateTime.class);
+                    long bytesSent = resultSet.getLong("bytes_sent");
+                    long bytesReceived = resultSet.getLong("bytes_received");
+                    UUID sessionToken = resultSet.getObject("session_token", UUID.class);
+                    String reason = resultSet.getString("disconnect_reason");
+                    Session updatedSession = new Session(sessionId, userId, clientIp, connectedAt, disconnectAt,
+                            bytesSent, bytesReceived, reason, sessionToken);
+                    return Optional.of(updatedSession);
+                } else {
+                    return Optional.empty();
                 }
-            } else {
-                throw new RuntimeException("no session with that id has been found");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (RuntimeException e) {
             e.printStackTrace();
         }
         return Optional.empty();
@@ -175,25 +208,24 @@ public class SessionRepository implements SessionRepo {
         PreparedStatement findSessionPreparedStatement = connection.prepareStatement(findSessionSqlStatement);
         PreparedStatement findUserPreparedStatement = connection.prepareStatement(findUserIdSqlStatement)) {
             findUserPreparedStatement.setString(1, username);
-            ResultSet userResultSet = findUserPreparedStatement.executeQuery();
-            if (userResultSet.next()) {
-                long userId = userResultSet.getLong("id");
-                findSessionPreparedStatement.setLong(1, userId);
-                ResultSet sessionResultSet = findSessionPreparedStatement.executeQuery();
-                if (sessionResultSet.next()) {
-                    long sessionId = sessionResultSet.getLong("id");
-                    long userID = sessionResultSet.getLong("user_id");
-                    String clientIp = sessionResultSet.getObject("client_ip").toString();
-                    OffsetDateTime connectedAt = sessionResultSet.getObject("connected_at", OffsetDateTime.class);
-                    long bytesSent = sessionResultSet.getLong("bytes_sent");
-                    long bytesReceived = sessionResultSet.getLong("bytes_received");
-                    UUID sessionToken = sessionResultSet.getObject("session_token", UUID.class);
-                    Session currentActiveSession = new Session(sessionId, userID, clientIp, connectedAt, null,
-                            bytesSent, bytesReceived, null, sessionToken);
-                    resultList.add(currentActiveSession);
+            try (ResultSet userResultSet = findUserPreparedStatement.executeQuery()) {
+                while (userResultSet.next()) {
+                    long userId = userResultSet.getLong("id");
+                    findSessionPreparedStatement.setLong(1, userId);
+                    ResultSet sessionResultSet = findSessionPreparedStatement.executeQuery();
+                    if (sessionResultSet.next()) {
+                        long sessionId = sessionResultSet.getLong("id");
+                        long userID = sessionResultSet.getLong("user_id");
+                        String clientIp = sessionResultSet.getObject("client_ip").toString();
+                        OffsetDateTime connectedAt = sessionResultSet.getObject("connected_at", OffsetDateTime.class);
+                        long bytesSent = sessionResultSet.getLong("bytes_sent");
+                        long bytesReceived = sessionResultSet.getLong("bytes_received");
+                        UUID sessionToken = sessionResultSet.getObject("session_token", UUID.class);
+                        Session currentActiveSession = new Session(sessionId, userID, clientIp, connectedAt, null,
+                                bytesSent, bytesReceived, null, sessionToken);
+                        resultList.add(currentActiveSession);
+                    }
                 }
-                return resultList;
-            } else {
                 return resultList;
             }
         } catch (SQLException e) {

@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface SessionRepo {
 
-    long createNewSession(long userId, String clientIp);
+    Optional<Session> createNewSession(long userId, String clientIp);
 
     Optional<Session> updateDisconnectSessionTimeAndReason(String reason, long sessionId);
 
