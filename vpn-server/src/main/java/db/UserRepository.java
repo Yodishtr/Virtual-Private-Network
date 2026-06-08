@@ -3,6 +3,7 @@ package db;
 import com.zaxxer.hikari.HikariDataSource;
 import utilities.User;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,9 +15,9 @@ import java.util.Optional;
 
 public class UserRepository implements UserRepo {
 
-    private final HikariDataSource dataSource;
+    private final DataSource dataSource;
 
-    public UserRepository(HikariDataSource dataSource) {
+    public UserRepository(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
@@ -29,7 +30,7 @@ public class UserRepository implements UserRepo {
              // do the prepared statement within the try-with
         PreparedStatement preparedStatement = connection.prepareStatement(sqlStatement)) {
             preparedStatement.setString(1, username);
-            // execute query and get results
+            // execute your query and get your results
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
                     long user_id = resultSet.getLong("id");
